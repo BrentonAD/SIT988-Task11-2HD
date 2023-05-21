@@ -10,7 +10,8 @@ from botbuilder.core import (
     BotFrameworkAdapterSettings,
     MemoryStorage,
     TurnContext,
-    UserState,
+    ConversationState,
+    UserState
 )
 from botbuilder.core.integration import aiohttp_error_middleware
 from botbuilder.schema import Activity, ActivityTypes
@@ -59,10 +60,10 @@ ADAPTER.on_turn_error = on_error
 # Create MemoryStorage, UserState
 MEMORY = MemoryStorage()
 USER_STATE = UserState(MEMORY)
+CONVERSATION_STATE = ConversationState(MEMORY)
 
 # Create the Bot
-BOT = RecipeBot(USER_STATE)
-
+BOT = RecipeBot(CONVERSATION_STATE, USER_STATE)
 
 # Listen for incoming requests on /api/messages.
 async def messages(req: Request) -> Response:
