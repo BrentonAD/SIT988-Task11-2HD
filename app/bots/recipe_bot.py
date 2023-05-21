@@ -13,7 +13,10 @@ from botbuilder.schema import (
 )
 
 from data_models import ConversationData, UserProfile
+from api.request_handler import get_user, add_or_update_user
+
 from typing import List
+import asyncio
 
 class RecipeBot(ActivityHandler):
     def __init__(self, conversation_state: ConversationState, user_state: UserState):
@@ -80,6 +83,9 @@ class RecipeBot(ActivityHandler):
         """
         # Get the state properties from the turn context.
         user_profile = await self.user_profile_accessor.get(turn_context, UserProfile)
+        conversation_data = await self.conversation_data_accessor.get(
+            turn_context, ConversationData
+        )
 
         for member in members_added:
             if member.id != turn_context.activity.recipient.id:
@@ -87,12 +93,20 @@ class RecipeBot(ActivityHandler):
                     f"Hi there { member.name }. " + self.WELCOME_MESSAGE
                 )
                 
-                user_profile.id = member.id
-                user_profile.name = member.name
+                # Get user from database
+                user = get_user(member.id)
+                if not user:
+                    user_profile.id = member.id
+                    user_profile.name = member.name
+                    await turn_context.send_activity("Before we get started, please answer the following question...")
+                    await self._send_tracking_permission_card(turn_context)
+                else:
+                    user_profile.id = user.get("id")
+                    user_profile.name = user.get("name")
+                    user_profile.allow_tracking = True
+                    conversation_data.did_prompt_for_tracking=True
 
-                await turn_context.send_activity("Before we get started, please answer the following question...")
-
-                await self._send_tracking_permission_card(turn_context)
+                    await turn_context.send_activity(f"Welcome back {user_profile.name}!")
     
     async def on_message_activity(self, turn_context: TurnContext):
         """
@@ -109,6 +123,9 @@ class RecipeBot(ActivityHandler):
             response = turn_context.activity.text
             if response == "Yes":
                 user_profile.allow_tracking = True
+
+                add_or_update_user(user_profile.id, user_profile.name)
+
                 await turn_context.send_activity(
                     f"Okay {user_profile.name}, your preferences will be tracked for future use!"
                 )
