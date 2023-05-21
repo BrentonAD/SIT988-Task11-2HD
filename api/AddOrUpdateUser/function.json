@@ -1,14 +1,15 @@
 {
+  "scriptFile": "__init__.py",
   "bindings": [
     {
       "authLevel": "anonymous",
       "name": "req",
-      "type": "httpTrigger",
       "direction": "in",
+      "type": "httpTrigger",
       "methods": [
-        "get"
+        "post"
       ],
-      "route": "users/{id}"
+      "route": "users"
     },
     {
       "name": "$return",
@@ -16,12 +17,10 @@
       "direction": "out"
     },
     {
-      "name": "users",
+      "name": "user",
       "type": "sql",
-      "direction": "in",
-      "commandText": "SELECT * FROM users WHERE id = @id",
-      "commandType": "Text",
-      "parameters": "@id={id}",
+      "direction": "out",
+      "commandText": "[dbo].[users]",
       "connectionStringSetting": "recipebot"
     }
   ],
