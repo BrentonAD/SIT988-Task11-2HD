@@ -1,6 +1,6 @@
 class ConversationData:
     def __init__(
         self,
-        did_prompt_for_tracking: bool = False
+        did_welcome: bool = False
     ):
-        self.did_prompt_for_tracking = did_prompt_for_tracking
+        self.did_welcome = did_welcome
