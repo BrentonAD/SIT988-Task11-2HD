@@ -1,0 +1,29 @@
+{
+  "bindings": [
+    {
+      "authLevel": "function",
+      "name": "req",
+      "type": "httpTrigger",
+      "direction": "in",
+      "methods": [
+        "get"
+      ],
+      "route": "users/{id}"
+    },
+    {
+      "name": "$return",
+      "type": "http",
+      "direction": "out"
+    },
+    {
+      "name": "users",
+      "type": "sql",
+      "direction": "in",
+      "commandText": "SELECT * FROM users WHERE id = @id",
+      "commandType": "Text",
+      "parameters": "@id={id}",
+      "connectionStringSetting": "recipebot"
+    }
+  ],
+  "disabled": false
+}
