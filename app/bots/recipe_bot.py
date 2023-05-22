@@ -10,7 +10,7 @@ from botbuilder.schema import (
 
 from data_models import ConversationData, UserProfile
 from api.request_handler import get_user, get_user_allergies
-from dialogs import WelcomeNewUserDialog
+from dialogs import WelcomeNewUserDialog, ProvideIngredientsDialog
 from helpers import DialogHelper
 
 from typing import List
@@ -91,7 +91,12 @@ class RecipeBot(ActivityHandler):
                             allergies_msg = ", ".join(allergies[:-1]) + ", and " + allergies[-1]
                         else:
                             allergies_msg = allergies[0]
-                        await turn_context.send_activity(f"You previously said you were allergic to: {', '.join(allergies_msg)}")
+                        await turn_context.send_activity(f"You previously said you were allergic to: {allergies_msg}")
+                    await DialogHelper.run_dialog(
+                        ProvideIngredientsDialog(self._user_state, self._conversation_state),
+                        turn_context,
+                        self._conversation_state.create_property("ProvideIngredientsDialog")
+                    )
     
     async def on_message_activity(self, turn_context: TurnContext):
         """
@@ -103,7 +108,11 @@ class RecipeBot(ActivityHandler):
             turn_context, ConversationData
         )
         if conversation_data.did_welcome:
-            await turn_context.send_activity(f"Your allergies are {user_profile.allergies}")
+            await DialogHelper.run_dialog(
+                ProvideIngredientsDialog(self._user_state, self._conversation_state),
+                    turn_context,
+                    self._conversation_state.create_property("ProvideIngredientsDialog")
+                )
         else:
             await DialogHelper.run_dialog(
                 WelcomeNewUserDialog(self._user_state, self._conversation_state),

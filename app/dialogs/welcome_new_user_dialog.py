@@ -105,7 +105,8 @@ class WelcomeNewUserDialog(ComponentDialog):
             add_user_allergies(user_profile.id, step_context.result)
         conversation_data.did_welcome = True
         await step_context.context.send_activity(
-            f"Thank you for providing this information. Now it's time to generate some delicious recipes!"
+            f"""Thank you for providing this information. Now it's time to generate some delicious recipes!
+            Type any key to continue!"""
         )
 
         # WaterfallStep always finishes with the end of the Waterfall or with another

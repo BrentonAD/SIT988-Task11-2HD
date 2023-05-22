@@ -30,12 +30,11 @@ def get_user_allergies(userid: str):
     url = DefaultConfig.API_BASE_URL + "allergies/"+parsed_id
     response = requests.get(url)
     try:
-        alergies_response = json.loads(response.content)
-        alergies = [ row["allergy_ingredient"] for row in alergies_response ]
+        allergies_response = json.loads(response.content)
+        allergies = [ row["allergy_ingredient"] for row in allergies_response ]
     except IndexError:
-        alergies = None
-
-    return alergies
+        allergies = None
+    return allergies
 
 def add_user_allergies(userid: str, allergies: List[str]):
 
