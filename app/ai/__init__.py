@@ -1,3 +1,3 @@
-from .cognitive_services import TextAnalytics
+from .cognitive_services import TextAnalytics, ImageAnalytics
 
-__all__ = ["TextAnalytics"]
+__all__ = ["TextAnalytics", "ImageAnalytics"]

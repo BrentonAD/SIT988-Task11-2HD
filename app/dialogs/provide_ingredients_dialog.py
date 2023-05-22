@@ -5,14 +5,15 @@ from botbuilder.dialogs import (
     DialogTurnResult,
 )
 from botbuilder.dialogs.prompts import (
-    TextPrompt,
+    AttachmentPrompt,
     ConfirmPrompt,
-    PromptOptions
+    PromptOptions,
+    PromptValidatorContext
 )
 from botbuilder.core import MessageFactory, UserState, ConversationState
 
 from data_models import UserProfile
-from ai import TextAnalytics
+from ai import TextAnalytics, ImageAnalytics
 
 class ProvideIngredientsDialog(ComponentDialog):
     
@@ -33,28 +34,51 @@ class ProvideIngredientsDialog(ComponentDialog):
             )
         )
         self.add_dialog(ConfirmPrompt(ConfirmPrompt.__name__))
-        self.add_dialog(TextPrompt(TextPrompt.__name__))
+        self.add_dialog(
+            AttachmentPrompt(
+                AttachmentPrompt.__name__,
+                ProvideIngredientsDialog.attachment_prompt_validator
+            )
+        )
         self.initial_dialog_id = WaterfallDialog.__name__
 
     async def ingredients_step(
             self, step_context: WaterfallStepContext
     ) -> DialogTurnResult:
-        return await step_context.prompt(
-            TextPrompt.__name__,
-            PromptOptions(
-                prompt=MessageFactory.text(
-                    "Please provide the ingredients you have on hand."
-                    "This can be as text or in a photo."
-                )
+        prompt_options = PromptOptions(
+            prompt=MessageFactory.text(
+                 "Please provide the ingredients you have on hand. "
+                 "This can be as text or in a photo."
+            ),
+            retry_prompt=MessageFactory.text(
+                "The attachment must be a jpeg/png image file."
             )
+        )
+        return await step_context.prompt(
+            AttachmentPrompt.__name__,
+            prompt_options
         )
     
     async def handle_ingredients_step(
             self, step_context: WaterfallStepContext
     ) -> DialogTurnResult:
-        raw_ingredients = step_context.result
-        text_analytics = TextAnalytics()
-        ingredients = text_analytics.key_phrase_extraction([raw_ingredients])
+        # If the return type is a string:
+        if isinstance(step_context.result,str):
+            raw_ingredients = step_context.result
+            text_analytics = TextAnalytics()
+            ingredients = text_analytics.key_phrase_extraction([raw_ingredients])
+        else:
+            attachments = step_context.result
+            image_analytics = ImageAnalytics()
+            ingredients = image_analytics.detect_objects_in_attachments(attachments)
+
+        if len(ingredients)==0:
+            await step_context.context.send_activity(
+                    f"I'm sorry I couldn't understand those ingredients, may you please try again?"
+                )
+            return await step_context.replace_dialog(
+                ProvideIngredientsDialog.__name__
+            )
 
         user_profile = await self.user_profile_accessor.get(
             step_context.context, UserProfile
@@ -68,24 +92,29 @@ class ProvideIngredientsDialog(ComponentDialog):
                 ingredient for ingredient in ingredients
                     if ingredient in user_profile.allergies
             ]
-
-            if len(ingredients_ammended)>1:
-                ingredients_msg = ", ".join(ingredients_ammended[:-1]) + ", and " + ingredients_ammended[-1]
+            if len(allergy_notice)>0:
+                if len(ingredients_ammended)>1:
+                    ingredients_msg = ", ".join(ingredients_ammended[:-1]) + ", and " + ingredients_ammended[-1]
+                else:
+                    ingredients_msg = ingredients_ammended[0]   
+                if len(allergy_notice)>1:
+                    allergy_notice_msg = ", ".join(allergy_notice[:-1]) + ", and " + allergy_notice[-1]
+                else:
+                    allergy_notice_msg = allergy_notice[0]            
+                allergy_msg = f"""
+                    Please note I have filtered out {allergy_notice_msg}
+                    because you have previously said you are allergic."""
             else:
-                ingredients_msg = ingredients_ammended[0]   
-            if len(allergy_notice)>1:
-                allergy_notice_msg = ", ".join(allergy_notice[:-1]) + ", and " + allergy_notice[-1]
-            else:
-                allergy_notice_msg = allergy_notice[0]            
-            msg = f"""From what I understood you currently have {ingredients_msg} on hand?
-                Please note I have filtered out {allergy_notice_msg}
-                because you have previously said you are allergic."""
+                ingredients = ingredients_ammended
+                allergy_msg = ""
         else:
-            if len(ingredients)>1:
-                ingredients_msg = ", ".join(ingredients[:-1]) + ", and " + ingredients[-1]
-            else:
-                ingredients_msg = ingredients[0]
-            msg = f"From what I understood you currently have {ingredients_msg} on hand?"
+            allergy_msg = ""
+
+        if len(ingredients)>1:
+            ingredients_msg = ", ".join(ingredients[:-1]) + ", and " + ingredients[-1]
+        else:
+            ingredients_msg = ingredients[0]
+        msg = f"From what I understood you currently have {ingredients_msg} on hand?" + allergy_msg
 
         return await step_context.prompt(
             ConfirmPrompt.__name__,
@@ -105,3 +134,21 @@ class ProvideIngredientsDialog(ComponentDialog):
             return await step_context.replace_dialog(
                 ProvideIngredientsDialog.__name__
             )
+
+    @staticmethod
+    async def attachment_prompt_validator(prompt_context: PromptValidatorContext) -> bool:
+        if not prompt_context.recognized.succeeded:
+            prompt_context.recognized.value = prompt_context.context.activity.text
+            return True
+        
+        attachments = prompt_context.recognized.value
+
+        valid_images = [
+            attachment
+            for attachment in attachments
+            if attachment.content_type in ["image/jpeg","image/png"]
+        ]
+
+        prompt_context.recognized.value = valid_images
+
+        return len(valid_images) > 0
