@@ -8,6 +8,8 @@ from botbuilder.dialogs import (
 from botbuilder.dialogs.prompts import TextPrompt, ConfirmPrompt, PromptOptions
 from botbuilder.core import MessageFactory
 
+from ai import TextAnalytics
+
 class AllergiesDialog(ComponentDialog):
     def __init__(self, dialog_id: str = None):
         super(AllergiesDialog, self).__init__(
@@ -34,12 +36,15 @@ class AllergiesDialog(ComponentDialog):
     async def confirm_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
         
         raw_allergies = step_context.result
-
+        text_analytics = TextAnalytics()
+        allergies = text_analytics.key_phrase_extraction([raw_allergies])
         # Extract allergies from the text
-        allergies = raw_allergies.split(",")
         step_context.values["allergies"] = allergies
-
-        msg = f"From what I understood your allergies are {', '.join(allergies)}. Is this correct?"
+        if len(allergies)>1:
+            allergies_msg = ", ".join(allergies[:-1]) + ", and " + allergies[-1]
+        else:
+            allergies_msg = allergies[0]
+        msg = f"From what I understood you are allergic to {allergies_msg}. Is this correct?"
         return await step_context.prompt(
             ConfirmPrompt.__name__,
             PromptOptions(prompt=MessageFactory.text(msg)),
@@ -49,6 +54,9 @@ class AllergiesDialog(ComponentDialog):
         if step_context.result:
             return await step_context.end_dialog(step_context.values["allergies"])
         else:
+            await step_context.context.send_activity(
+                    f"I'm sorry about that, please try rephrasing."
+                )
             return await step_context.replace_dialog(
                 AllergiesDialog.__name__
             )

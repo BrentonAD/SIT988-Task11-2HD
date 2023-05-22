@@ -87,7 +87,11 @@ class RecipeBot(ActivityHandler):
 
                     await turn_context.send_activity(f"Welcome back {user_profile.name}!")
                     if allergies:
-                        await turn_context.send_activity(f"You previously said you were allergic to: {', '.join(allergies)}")
+                        if len(allergies)>1:
+                            allergies_msg = ", ".join(allergies[:-1]) + ", and " + allergies[-1]
+                        else:
+                            allergies_msg = allergies[0]
+                        await turn_context.send_activity(f"You previously said you were allergic to: {', '.join(allergies_msg)}")
     
     async def on_message_activity(self, turn_context: TurnContext):
         """
