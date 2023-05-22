@@ -1,0 +1,29 @@
+{
+  "bindings": [
+    {
+      "authLevel": "anonymous",
+      "name": "req",
+      "type": "httpTrigger",
+      "direction": "in",
+      "methods": [
+        "get"
+      ],
+      "route": "allergies/{id}"
+    },
+    {
+      "name": "$return",
+      "type": "http",
+      "direction": "out"
+    },
+    {
+      "name": "allergies",
+      "type": "sql",
+      "direction": "in",
+      "commandText": "SELECT * FROM user_allergies WHERE userid = @id",
+      "commandType": "Text",
+      "parameters": "@id={id}",
+      "connectionStringSetting": "recipebot"
+    }
+  ],
+  "disabled": false
+}

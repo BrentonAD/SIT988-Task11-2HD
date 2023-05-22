@@ -1,0 +1,28 @@
+{
+  "scriptFile": "__init__.py",
+  "bindings": [
+  {
+      "authLevel": "anonymous",
+      "type": "httpTrigger",
+      "direction": "in",
+      "name": "req",
+      "methods": [
+          "post"
+      ],
+      "route": "allergies"
+    },
+    {
+      "type": "http",
+      "direction": "out",
+      "name": "$return"
+    },
+    {
+      "name": "allergies",
+      "type": "sql",
+      "direction": "out",
+      "commandText": "[dbo].[user_allergies]",
+      "connectionStringSetting": "recipebot"
+    }
+  ],
+  "disabled": false
+}

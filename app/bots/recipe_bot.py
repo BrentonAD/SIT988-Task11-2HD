@@ -9,7 +9,7 @@ from botbuilder.schema import (
 )
 
 from data_models import ConversationData, UserProfile
-from api.request_handler import get_user
+from api.request_handler import get_user, get_user_allergies
 from dialogs import WelcomeNewUserDialog
 from helpers import DialogHelper
 
@@ -78,12 +78,16 @@ class RecipeBot(ActivityHandler):
                         self._conversation_state.create_property("WelcomeNewUserDialogState")
                     )
                 else:
+                    allergies = get_user_allergies(user.get("id"))
                     user_profile.id = user.get("id")
                     user_profile.name = user.get("name")
+                    user_profile.allergies = allergies
                     user_profile.allow_tracking = True
                     conversation_data.did_welcome=True
 
                     await turn_context.send_activity(f"Welcome back {user_profile.name}!")
+                    if allergies:
+                        await turn_context.send_activity(f"You previously said you were allergic to: {', '.join(allergies)}")
     
     async def on_message_activity(self, turn_context: TurnContext):
         """

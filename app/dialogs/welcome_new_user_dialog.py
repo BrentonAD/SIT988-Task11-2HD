@@ -13,7 +13,7 @@ from botbuilder.core import MessageFactory, UserState, ConversationState
 
 from data_models import UserProfile, ConversationData
 from dialogs import AllergiesDialog
-from api.request_handler import add_or_update_user
+from api.request_handler import add_or_update_user, add_user_allergies
 
 class WelcomeNewUserDialog(ComponentDialog):
     def __init__(self, user_state: UserState, conversation_state: ConversationState):
@@ -101,6 +101,8 @@ class WelcomeNewUserDialog(ComponentDialog):
         )
         
         user_profile.allergies = step_context.result
+        if step_context.result and user_profile.allow_tracking:
+            add_user_allergies(user_profile.id, step_context.result)
         conversation_data.did_welcome = True
         await step_context.context.send_activity(
             f"Thank you for providing this information. Now it's time to generate some delicious recipes!"
