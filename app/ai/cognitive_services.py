@@ -7,8 +7,9 @@ from config import DefaultConfig
 from azure.ai.textanalytics import TextAnalyticsClient
 from azure.core.credentials import AzureKeyCredential
 
-from azure.cognitiveservices.vision.computervision import ComputerVisionClient
-from msrest.authentication import CognitiveServicesCredentials
+from azure.cognitiveservices.vision.customvision.prediction import CustomVisionPredictionClient
+from msrest.authentication import ApiKeyCredentials
+
 
 from typing import List
 
@@ -40,14 +41,13 @@ class TextAnalytics:
 class ImageAnalytics:
     def __init__(self):
         self.client = self._authenticate_client()
+        self.project_id = "891232d0-5cda-4a76-adcb-ce15dd53b584"
+        self.publish_iteration_name = "IngredientDetectorModel"
 
     def _authenticate_client(self):
-        cv_credential = CognitiveServicesCredentials(DefaultConfig.COGNITIVE_SERVICES_KEY)
-        computer_vision_client = ComputerVisionClient(
-            endpoint=DefaultConfig.COGNITIVE_SERVICES_ENDPOINT, 
-            credentials=cv_credential
-        )
-        return computer_vision_client
+        prediction_credentials = ApiKeyCredentials(in_headers={"Prediction-key": DefaultConfig.COGNITIVE_SERVICES_KEY})
+        predictor = CustomVisionPredictionClient(DefaultConfig.COGNITIVE_SERVICES_ENDPOINT, prediction_credentials)
+        return predictor
     
     def detect_objects_in_attachments(self, attachments):
         # Send the image data to the Computer Vision Service
@@ -59,13 +59,16 @@ class ImageAnalytics:
                 with tempfile.NamedTemporaryFile(delete=False, suffix=attachment.name) as tmp_file:
                     tmp_file.write(data)
                 with open(tmp_file.name, "rb") as f:
-                    detect_objects_results = self.client.detect_objects_in_stream(f)
+                    detect_objects_results = self.client.detect_image(
+                        self.project_id, self.publish_iteration_name, f)
 
             # Unpack the response from the computer vision service in an easy to work with format
             
-            for result in detect_objects_results.objects:
-                object_name = result.object_property
-                detection_confidence = result.confidence
-                detected_objects.append(object_name)
-
+            for result in detect_objects_results.predictions:
+                object_name = result.tag_name
+                detection_confidence = result.probability
+                if detection_confidence > 0.5:
+                    detected_objects.append(object_name)
+            # Remove duplicates
+            detected_objects = list(set(detected_objects))
         return detected_objects

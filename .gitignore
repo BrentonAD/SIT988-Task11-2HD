@@ -1,3 +1,6 @@
+custom_models/config.py
+custom_models/data
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
