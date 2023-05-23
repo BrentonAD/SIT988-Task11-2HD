@@ -12,8 +12,11 @@ from botbuilder.dialogs.prompts import (
 )
 from botbuilder.core import MessageFactory, UserState, ConversationState
 
+from dialogs import ChooseRecipeDialog
 from data_models import UserProfile
-from ai import TextAnalytics, ImageAnalytics
+from ai import TextAnalytics, ImageAnalytics, RecipeGenerator
+
+from api.request_handler import add_user_preferences
 
 class ProvideIngredientsDialog(ComponentDialog):
     
@@ -29,7 +32,10 @@ class ProvideIngredientsDialog(ComponentDialog):
                 [
                     self.ingredients_step,
                     self.handle_ingredients_step,
-                    self.loop_step
+                    self.loop_step,
+                    self.recipe_generation_step,
+                    self.start_over_step,
+                    self.final_step
                 ],
             )
         )
@@ -40,6 +46,7 @@ class ProvideIngredientsDialog(ComponentDialog):
                 ProvideIngredientsDialog.attachment_prompt_validator
             )
         )
+        self.add_dialog(ChooseRecipeDialog(ChooseRecipeDialog.__name__))
         self.initial_dialog_id = WaterfallDialog.__name__
 
     async def ingredients_step(
@@ -48,7 +55,9 @@ class ProvideIngredientsDialog(ComponentDialog):
         prompt_options = PromptOptions(
             prompt=MessageFactory.text(
                  "Please provide the ingredients you have on hand. "
-                 "This can be as text or in a photo."
+                 "This can be as text or in a photo.\n"
+                 "If you provide an image, it will be stored anonymously "
+                 "to help improve our services in the future."
             ),
             retry_prompt=MessageFactory.text(
                 "The attachment must be a jpeg/png image file."
@@ -72,7 +81,7 @@ class ProvideIngredientsDialog(ComponentDialog):
             image_analytics = ImageAnalytics()
             ingredients = image_analytics.detect_objects_in_attachments(attachments)
 
-        if len(ingredients)==0:
+        if ingredients is None:
             await step_context.context.send_activity(
                     f"I'm sorry I couldn't understand those ingredients, may you please try again?"
                 )
@@ -110,6 +119,8 @@ class ProvideIngredientsDialog(ComponentDialog):
         else:
             allergy_msg = ""
 
+        step_context.values["ingredients"] = ingredients
+        
         if len(ingredients)>1:
             ingredients_msg = ", ".join(ingredients[:-1]) + ", and " + ingredients[-1]
         else:
@@ -124,9 +135,12 @@ class ProvideIngredientsDialog(ComponentDialog):
     async def loop_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
         if step_context.result:
             await step_context.context.send_activity(
-                    f"Thank you"
+                    "That's great! Let's see what you could make with that...\n"
+                    "Remember the recipes generated here are only a guide made by AI. "
+                    "Caution should be applied when cooking them. "
+                    "Please consult a cooking professional if you are unsure."
                 )            
-            return await step_context.end_dialog(None)
+            return await step_context.next(None)
         else:
             await step_context.context.send_activity(
                     f"I'm sorry about that, please try again with a different input."
@@ -134,6 +148,86 @@ class ProvideIngredientsDialog(ComponentDialog):
             return await step_context.replace_dialog(
                 ProvideIngredientsDialog.__name__
             )
+
+    async def recipe_generation_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
+        recipe_generator = RecipeGenerator()
+        generated_recipes = recipe_generator.generation_function(step_context.values["ingredients"])
+        
+        user_profile = await self.user_profile_accessor.get(
+            step_context.context, UserProfile
+        )
+        # Filter allergies out of recipes
+        if user_profile.allergies:
+            generated_recipes = [ 
+                text for text in generated_recipes
+                    if not any(allergy in text for allergy in user_profile.allergies)
+                ]
+
+        step_context.values["recipes"] = generated_recipes
+
+        for text in generated_recipes:
+            section_msg = ""
+            sections = text.split("\n")
+            for section in sections:
+                section = section.strip()
+                if section.startswith("title:"):
+                    section = section.replace("title:", "")
+                    headline = "TITLE"
+                elif section.startswith("ingredients:"):
+                    section = section.replace("ingredients:", "")
+                    headline = "INGREDIENTS"
+                elif section.startswith("directions:"):
+                    section = section.replace("directions:", "")
+                    headline = "DIRECTIONS"
+                
+                if headline == "TITLE":
+                    section_msg += f"[{headline}]: {section.strip().capitalize()}\n\n"
+                else:
+                    section_info = [f"  - {i+1}: {info.strip().capitalize()}" for i, info in enumerate(section.split("--"))]
+                    section_msg += f"[{headline}]\n\n"
+                    section_msg += "\n\n".join(section_info)+"\n\n"
+            await step_context.context.send_activity(
+                MessageFactory.text(section_msg)
+            )
+        if user_profile.allow_tracking:
+            return await step_context.begin_dialog(ChooseRecipeDialog.__name__, {"selected": [], "recipes": generated_recipes})
+        else:
+            return await step_context.next(None)
+    
+    async def start_over_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
+        # If the user had selected preferences because they allowed tracking, add to the database
+        if step_context.result:
+            user_profile = await self.user_profile_accessor.get(
+                step_context.context, UserProfile
+            )
+            preferences = [ 
+                {"recipe" : recipe, "marked_as_preference": (idx in step_context.result)}
+                    for idx, recipe in enumerate(step_context.values["recipes"])
+                ]
+            add_user_preferences(user_profile.id, preferences)
+
+        msg = "Thank you for participating. Would you like to try some more ingredients?"
+        return await step_context.prompt(
+            ConfirmPrompt.__name__,
+            PromptOptions(prompt=MessageFactory.text(msg)),
+        )
+
+    async def final_step(self, step_context: WaterfallStepContext) -> DialogTurnResult:
+        if step_context.result:
+            await step_context.context.send_activity(
+                    f"Okay, no problem!"
+                )            
+            return await step_context.replace_dialog(
+                ProvideIngredientsDialog.__name__
+            )
+        else:
+            await step_context.context.send_activity(
+                    f"That's okay, send me another message if you would like to generate another recipe."
+                )
+            return await step_context.end_dialog(
+                ProvideIngredientsDialog.__name__
+            )
+        
 
     @staticmethod
     async def attachment_prompt_validator(prompt_context: PromptValidatorContext) -> bool:

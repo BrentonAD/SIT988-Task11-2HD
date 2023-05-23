@@ -44,3 +44,16 @@ def add_user_allergies(userid: str, allergies: List[str]):
             for allergy in allergies
     ]
     reponse = requests.post(url, json=body)
+
+def add_user_preferences(userid: str, preferences: List[dict]):
+
+    url = DefaultConfig.API_BASE_URL + "preferences"
+    body = [
+        { 
+            "userId": userid,
+            "recipe": preference["recipe"] ,
+            "marked_as_preference": preference["marked_as_preference"]
+        }
+        for preference in preferences
+    ]
+    reponse = requests.post(url, json=body)

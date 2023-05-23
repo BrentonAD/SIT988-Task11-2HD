@@ -1,0 +1,28 @@
+{
+  "scriptFile": "__init__.py",
+  "bindings": [
+  {
+      "authLevel": "anonymous",
+      "type": "httpTrigger",
+      "direction": "in",
+      "name": "req",
+      "methods": [
+          "post"
+      ],
+      "route": "preferences"
+    },
+    {
+      "type": "http",
+      "direction": "out",
+      "name": "$return"
+    },
+    {
+      "name": "preferences",
+      "type": "sql",
+      "direction": "out",
+      "commandText": "[dbo].[user_preferences]",
+      "connectionStringSetting": "recipebot"
+    }
+  ],
+  "disabled": false
+}

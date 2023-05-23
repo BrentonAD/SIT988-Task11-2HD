@@ -21,7 +21,6 @@ class AllergiesDialog(ComponentDialog):
                 WaterfallDialog.__name__, [self.provide_allergies_step, self.confirm_step, self.loop_step]
             )
         )
-
         self.initial_dialog_id = WaterfallDialog.__name__
     
     async def provide_allergies_step(

@@ -106,7 +106,7 @@ class WelcomeNewUserDialog(ComponentDialog):
         conversation_data.did_welcome = True
         await step_context.context.send_activity(
             f"""Thank you for providing this information. Now it's time to generate some delicious recipes!
-            Type any key to continue!"""
+            Please let me know when you are ready to continue."""
         )
 
         # WaterfallStep always finishes with the end of the Waterfall or with another
