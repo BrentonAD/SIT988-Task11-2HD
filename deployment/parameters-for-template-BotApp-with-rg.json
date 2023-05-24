@@ -1,0 +1,36 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "appServiceName": {
+            "value": "recipebot-app-service"
+        },
+        "existingAppServicePlanName": {
+            "value": ""
+        },
+        "existingAppServicePlanLocation": {
+            "value": ""
+        },
+        "newAppServicePlanName": {
+            "value": "recipebot-app-service-plan"
+        },
+        "newAppServicePlanLocation": {
+            "value": "Australia East"
+        },
+        "newAppServicePlanSku": {
+            "value": {
+                "name": "B2",
+                "tier": "Basic",
+                "size": "B2",
+                "family": "B",
+                "capacity": 1
+            }
+        },
+        "appId": {
+            "value": "a31fb96a-f608-4778-85e9-f14ba9a2b265"
+        },
+        "appSecret": {
+            "value": "password"
+        }
+    }
+}

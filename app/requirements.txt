@@ -1,0 +1,9 @@
+botbuilder-integration-aiohttp
+botbuilder-core
+botbuilder-dialogs
+azure-ai-textanalytics
+azure-cognitiveservices-vision-customvision
+transformers
+jax
+jaxlib
+flax
